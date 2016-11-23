@@ -46,17 +46,18 @@ function get_spawn() {
 
 function spawn_creep(role) {
   var iter = 0;
-  for(var shape in roles[role].shapes) {
+  for(var shape_idx in roles[role].shapes) {
     iter++;
+    shape = roles[role].shapes[shape_idx];
     if(get_spawn().canCreateCreep(shape) == OK) {
       var creep = get_spawn().createCreep(shape, undefined, {role: role});
-      console.log("Spawned " + role + " " + creep.name + ", shape " + iter);
+      console.log("Spawned " + role + " " + creep + ", shape " + iter);
       return creep;
     }
   }
 }
 
-function adjust_creeps() {
+function get_priorities() {
   var counts = {};
   var total = 0;
   for(var role in roles) {
@@ -70,21 +71,38 @@ function adjust_creeps() {
     }
   );
   if(total == 0 ) { total = 1; }
+  return [counts, total, priorities];
+}
+
+function show_priorities() {
+  pri_list = "";
+  [counts, total, priorities] = get_priorities();
   for(role_p in priorities) {
     role = priorities[role_p];
-    pct = counts[role]/total;
-    console.log(role + "==" + pct + " -- " + roles[role].weight_pct);
+    pct = counts[role]/total*100;
+    pri_list += "Want " + roles[role].weight_pct + "% " + role + ", have " +
+            pct.toFixed(2) + "% (" + counts[role] + " out of " + total + ")\n";
+  }
+  return pri_list;
+}
+
+function adjust_creeps() {
+  [counts, total, priorities] = get_priorities();
+  for(role_p in priorities) {
+    role = priorities[role_p];
+    pct = counts[role]/total*100;
     if(pct < roles[role].weight_pct) {
-      console.log("Want to spawn " + role + "(" + pct + "<" + roles[role].weight_pct + ")")
       spawn_creep(role);
+      return;
     }
   }
 }
 
-Memory.list_creeps = list_creeps;
-Memory.spawn_creep = spawn_creep;
-
 module.exports.loop = function () {
+  Memory.list_creeps = list_creeps;
+  Memory.spawn_creep = spawn_creep;
+  Memory.show_priorities = show_priorities;
+
   // clean out dead memory
   for(var name in Memory.creeps) {
     if(!Game.creeps[name]) { delete Memory.creeps[name]; }
