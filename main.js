@@ -1,26 +1,35 @@
-  var roles = {
-    'harvester': {
-      'num': 8,
-      'shape': [WORK,WORK,CARRY,MOVE,MOVE],
-      //'shape': [WORK,CARRY,MOVE],
-    },
-    'upgrader': {
-      'num': 8,
-      'shape': [WORK,WORK,CARRY,MOVE,MOVE],
-      //'shape': [WORK,CARRY,MOVE],
-    },
-    'builder': {
-      'num': 1,
-      'shape': [WORK,WORK,CARRY,MOVE,MOVE],
-      //'shape': [WORK,CARRY,MOVE],
-    },
-  };
+var roles = {
+  'harvester': {
+    'weight_pct': 50,
+    'shapes': [
+      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
+      [WORK, WORK, CARRY, MOVE, MOVE],
+      [WORK, CARRY, MOVE],
+    ],
+  },
+  'upgrader': {
+    'weight_pct': 37,
+    'shapes': [
+      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
+      [WORK, WORK, CARRY, MOVE, MOVE],
+      [WORK, CARRY, MOVE],
+    ],
+  },
+  'builder': {
+    'weight_pct': 13,
+    'shapes': [
+      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
+      [WORK, WORK, CARRY, MOVE, MOVE],
+      [WORK, CARRY, MOVE],
+    ],
+  },
+};
 for(var role in roles) {
   roles[role]['module'] = require('role.' + role);
 }
 
 function list_creeps() {
-  creep_list = ""
+  var creep_list = ""
   for(var role in roles) {
     var role_creeps = _.filter(Game.creeps, (creep) => creep.memory.role == role);
     creep_list += "Creeps with role " + role + ":";
@@ -31,33 +40,64 @@ function list_creeps() {
   return creep_list;
 }
 
-module.exports.loop = function () {
-  spawn = Game.spawns['Spawn1'];
-  spawn.memory.rrole = roles;
-  Game.list_creeps = list_creeps;
+function get_spawn() {
+  return Game.spawns['Spawn1'];
+}
 
-  // clean out dead memory
-  for(var name in Memory.creeps) {
-      if(!Game.creeps[name]) { delete Memory.creeps[name]; }
+function spawn_creep(role) {
+  var iter = 0;
+  for(var shape in roles[role].shapes) {
+    iter++;
+    if(get_spawn().canCreateCreep(shape) == OK) {
+      var creep = get_spawn().createCreep(shape, undefined, {role: role});
+      console.log("Spawned " + role + " " + creep.name + ", shape " + iter);
+      return creep;
+    }
   }
+}
 
+function adjust_creeps() {
+  var counts = {};
+  var total = 0;
   for(var role in roles) {
     var role_creeps = _.filter(Game.creeps, (creep) => creep.memory.role == role);
-    if(role_creeps.length < roles[role].num) {
-      if(spawn.canCreateCreep(roles[role].shape) == OK) {
-        console.log("Spawning new creep of type " + role);
-        spawn.createCreep(roles[role].shape, undefined, {role: role});
-      }
+    counts[role] = role_creeps.length;
+    total += role_creeps.length;
+  }
+  priorities = Object.keys(roles).sort(
+    function(a, b) {
+      return roles[b].weight_pct - roles[a].weight_pct;
+    }
+  );
+  if(total == 0 ) { total = 1; }
+  for(role_p in priorities) {
+    role = priorities[role_p];
+    pct = counts[role]/total;
+    console.log(role + "==" + pct + " -- " + roles[role].weight_pct);
+    if(pct < roles[role].weight_pct) {
+      console.log("Want to spawn " + role + "(" + pct + "<" + roles[role].weight_pct + ")")
+      spawn_creep(role);
     }
   }
+}
 
-    for(var name in Game.creeps) {
-        var creep = Game.creeps[name];
-        var creep_role = creep.memory.role;
-        if(roles[creep_role]) {
-          roles[creep_role].module.run(creep);
-        }
+Memory.list_creeps = list_creeps;
+Memory.spawn_creep = spawn_creep;
+
+module.exports.loop = function () {
+  // clean out dead memory
+  for(var name in Memory.creeps) {
+    if(!Game.creeps[name]) { delete Memory.creeps[name]; }
+  }
+
+  adjust_creeps();
+  for(var name in Game.creeps) {
+    var creep = Game.creeps[name];
+    var creep_role = creep.memory.role;
+    if(roles[creep_role]) {
+      roles[creep_role].module.run(creep);
     }
+  }
 }
 /*
 // Using Memory.creeps
@@ -67,32 +107,32 @@ _(Memory.creeps).filter( { role: 'x' } ).size();
 _(Game.creeps).filter( { memory: { role: 'x' } } ).size();
 
 // tower of power
-    var tower = Game.getObjectById('8ec71c4181484500e9f0c0d3');
-    if(tower) {
-        var closestDamagedStructure = tower.pos.findClosestByRange(FIND_STRUCTURES, {
-            filter: (structure) => structure.hits < structure.hitsMax
-        });
-        if(closestDamagedStructure) {
-            tower.repair(closestDamagedStructure);
-        }
+var tower = Game.getObjectById('8ec71c4181484500e9f0c0d3');
+if(tower) {
+var closestDamagedStructure = tower.pos.findClosestByRange(FIND_STRUCTURES, {
+filter: (structure) => structure.hits < structure.hitsMax
+});
+if(closestDamagedStructure) {
+tower.repair(closestDamagedStructure);
+}
 
-        var closestHostile = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
-        if(closestHostile) {
-            tower.attack(closestHostile);
-        }
-    }
+var closestHostile = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+if(closestHostile) {
+tower.attack(closestHostile);
+}
+}
 
-    Game.spawns['Spawn1'].room.createConstructionSite( 23, 22, STRUCTURE_EXTENSION );
-    STRUCTURE_EXTENSION
+Game.spawns['Spawn1'].room.createConstructionSite( 23, 22, STRUCTURE_EXTENSION );
+STRUCTURE_EXTENSION
 
-    Game.spawns['Spawn1'].createCreep( [WORK,WORK,CARRY,MOVE], undefined, {role:'builder'});
+Game.spawns['Spawn1'].createCreep( [WORK,WORK,CARRY,MOVE], undefined, {role:'builder'});
 
 
-        'HarvesterBig',
-        { role: 'harvester' } );
-    Game.spawns['Spawn1'].createCreep( [WORK,WORK,WORK,WORK,CARRY,MOVE,MOVE],
-        'HarvesterBig',
-        { role: 'harvester' } );
+'HarvesterBig',
+{ role: 'harvester' } );
+Game.spawns['Spawn1'].createCreep( [WORK,WORK,WORK,WORK,CARRY,MOVE,MOVE],
+'HarvesterBig',
+{ role: 'harvester' } );
 
-        [WORK,WORK,WORK,WORK,CARRY,MOVE,MOVE]
+[WORK,WORK,WORK,WORK,CARRY,MOVE,MOVE]
 */
