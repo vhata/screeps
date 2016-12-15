@@ -20,9 +20,9 @@ var roleBuilder = {
       else {
         var torepair = creep.pos.findClosestByPath(FIND_STRUCTURES, {
           filter: (structure) => {
-            return (structure.structureType == STRUCTURE_WALL && structure.hits < 10000) ||
+            return (structure.structureType == STRUCTURE_WALL && structure.hits < 20000) ||
             (structure.structureType == STRUCTURE_RAMPART && structure.hits < 10000) ||
-            (structure.structureType == STRUCTURE_ROAD && structure.hits < 3000)
+            (structure.structureType == STRUCTURE_ROAD && structure.hits < 4000)
           }
         });
 

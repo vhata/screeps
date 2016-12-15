@@ -1,26 +1,31 @@
 var roles = {
   'harvester': {
-    'weight_pct': 50,
+    'weight_pct': 51,
     'shapes': [
-      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
-      [WORK, WORK, CARRY, MOVE, MOVE],
-      [WORK, CARRY, MOVE],
+      [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE],
+//      [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE],
+//      [WORK, WORK, CARRY, MOVE, MOVE],
+//      [WORK, CARRY, MOVE],
     ],
   },
   'upgrader': {
-    'weight_pct': 37,
+    'weight_pct': 45,
     'shapes': [
-      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
-      [WORK, WORK, CARRY, MOVE, MOVE],
-      [WORK, CARRY, MOVE],
+      [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE],
+//      [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE],
+//      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
+//      [WORK, WORK, CARRY, MOVE, MOVE],
+//      [WORK, CARRY, MOVE],
     ],
   },
   'builder': {
-    'weight_pct': 13,
+    'weight_pct': 5,
     'shapes': [
-      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
-      [WORK, WORK, CARRY, MOVE, MOVE],
-      [WORK, CARRY, MOVE],
+      [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE],
+//      [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE],
+//      [WORK, WORK, WORK, CARRY, MOVE, MOVE],
+//      [WORK, WORK, CARRY, MOVE, MOVE],
+//      [WORK, CARRY, MOVE],
     ],
   },
 };
@@ -81,7 +86,7 @@ function show_priorities() {
     role = priorities[role_p];
     pct = counts[role]/total*100;
     pri_list += "Want " + roles[role].weight_pct + "% " + role + ", have " +
-            pct.toFixed(2) + "% (" + counts[role] + " out of " + total + ")\n";
+            pct.toFixed() + "% (" + counts[role] + " out of " + total + ")\n";
   }
   return pri_list;
 }
@@ -98,16 +103,52 @@ function adjust_creeps() {
   }
 }
 
+function list_roles(role) {
+  var creeps = _.filter(Game.creeps, (creep) => creep.memory.role == role);
+  return creeps;
+}
+
+function provision(role, n) {
+  var creeps = _.filter(Game.creeps, (creep) => creep.memory.role != role)
+                .sort(function(){ return .5 - Math.random()})
+                .slice(0, n);
+  for(var creep in creeps) {
+    creeps[creep].memory.role = role;
+  }
+  return creeps;
+}
+
+function do_tower() {
+  var tower = Game.getObjectById('58372882465957f661f0aa6b');
+  if(tower.structureType == 'tower') {
+    var closestDamagedStructure = tower.pos.findClosestByRange(FIND_STRUCTURES, {
+      filter: (structure) => structure.hits < structure.hitsMax
+    });
+    if(closestDamagedStructure) {
+      tower.repair(closestDamagedStructure);
+    }
+
+    var closestHostile = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+    if(closestHostile) {
+      tower.attack(closestHostile);
+    }
+  }
+
+}
+
 module.exports.loop = function () {
   Memory.list_creeps = list_creeps;
+  Memory.list_roles = list_roles;
   Memory.spawn_creep = spawn_creep;
   Memory.show_priorities = show_priorities;
+  Memory.provision = provision;
 
   // clean out dead memory
   for(var name in Memory.creeps) {
     if(!Game.creeps[name]) { delete Memory.creeps[name]; }
   }
 
+/*  //do_tower();
   adjust_creeps();
   for(var name in Game.creeps) {
     var creep = Game.creeps[name];
@@ -115,7 +156,7 @@ module.exports.loop = function () {
     if(roles[creep_role]) {
       roles[creep_role].module.run(creep);
     }
-  }
+  }*/
 }
 /*
 // Using Memory.creeps
